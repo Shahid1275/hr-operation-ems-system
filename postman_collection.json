@@ -32,6 +32,30 @@
       "value": "",
       "type": "string",
       "description": "Paste the token from the password reset email link here for testing"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string",
+      "description": "Your test account email — set this before running Register or Login"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string",
+      "description": "Your test account password — set this before running Register or Login"
+    },
+    {
+      "key": "first_name",
+      "value": "",
+      "type": "string",
+      "description": "First name for registration"
+    },
+    {
+      "key": "last_name",
+      "value": "",
+      "type": "string",
+      "description": "Last name for registration"
     }
   ],
   "item": [
@@ -68,7 +92,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"{{first_name}}\",\n  \"lastName\": \"{{last_name}}\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -87,10 +111,10 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"{{first_name}}\",\n  \"lastName\": \"{{last_name}}\"\n}"
                 }
               },
-              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refreshToken\": \"a3f4b72c9e1d8f056ab3c72...\",\n  \"user\": {\n    \"id\": 1,\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"role\": \"USER\",\n    \"isEmailVerified\": false\n  },\n  \"message\": \"A verification email has been sent to john@example.com. Please verify your account before logging in.\"\n}"
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...,\n  \"refreshToken\": \"a3f4b72c9e1d8f056ab3c72...\",\n  \"user\": {\n    \"id\": 1,\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"role\": \"USER\",\n    \"isEmailVerified\": false\n  },\n  \"message\": \"A verification email has been sent to john@example.com. Please verify your account before logging in.\"\n}"
             },
             {
               "name": "409 Conflict — Email already registered",
@@ -100,7 +124,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
                 }
               },
               "body": "{\n  \"statusCode\": 409,\n  \"message\": \"Email already registered\",\n  \"error\": \"Conflict\"\n}"
@@ -148,7 +172,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -167,7 +191,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
                 }
               },
               "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refreshToken\": \"b7e2d91f4c3a8056ef2d1c9...\",\n  \"user\": {\n    \"id\": 1,\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"role\": \"USER\",\n    \"isEmailVerified\": true\n  }\n}"
@@ -180,7 +204,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password\"\n}"
                 }
               },
               "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Invalid credentials\",\n  \"error\": \"Unauthorized\"\n}"
@@ -193,7 +217,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
                 }
               },
               "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Please verify your email address before logging in\",\n  \"error\": \"Unauthorized\"\n}"
@@ -435,7 +459,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"john@example.com\"\n}",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -454,7 +478,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"john@example.com\"\n}"
+                  "raw": "{\n  \"email\": \"{{email}}\"\n}"
                 }
               },
               "body": "{\n  \"message\": \"If that email exists, a reset link has been sent\"\n}"
