@@ -1,0 +1,646 @@
+{
+  "info": {
+    "name": "Employee Management System — Auth API",
+    "_postman_id": "ems-auth-api-collection-v2",
+    "description": "Complete authentication API for the Employee Management System.\n\nEndpoints cover: Register, Login, Token Refresh, Logout (single & all devices), Get Profile, Forgot Password, Reset Password, Verify Email, and Resend Verification.\n\n**Setup:** After Register or Login, the `access_token` and `refresh_token` collection variables are set automatically by the test scripts.\n\nBase URL: http://localhost:3000/api\nSwagger UI: http://localhost:3000/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "verify_token",
+      "value": "",
+      "type": "string",
+      "description": "Paste the token from the verification email link here for testing"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string",
+      "description": "Paste the token from the password reset email link here for testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "description": "All authentication endpoints. Public endpoints need no token. Protected endpoints require 'Bearer {{access_token}}' in Authorization header.",
+      "item": [
+
+        {
+          "name": "📝 Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.accessToken) {",
+                  "  pm.collectionVariables.set('access_token', res.accessToken);",
+                  "  pm.collectionVariables.set('refresh_token', res.refreshToken);",
+                  "  console.log('✅ Tokens saved to collection variables');",
+                  "}",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has accessToken', () => pm.expect(res.accessToken).to.be.a('string'));",
+                  "pm.test('Has refreshToken', () => pm.expect(res.refreshToken).to.be.a('string'));",
+                  "pm.test('Has user object', () => pm.expect(res.user).to.be.an('object'));",
+                  "pm.test('Has message', () => pm.expect(res.message).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new user account.\n\nOn success:\n- Issues access token (15 min) + refresh token (30 days)\n- Sends a verification email to the provided address\n- Automatically saves both tokens as collection variables\n\n⚠️ If REQUIRE_EMAIL_VERIFICATION=true, the user must click the email link before they can log in."
+          },
+          "response": [
+            {
+              "name": "201 Created — Registration successful",
+              "status": "Created",
+              "code": 201,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+                }
+              },
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refreshToken\": \"a3f4b72c9e1d8f056ab3c72...\",\n  \"user\": {\n    \"id\": 1,\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"role\": \"USER\",\n    \"isEmailVerified\": false\n  },\n  \"message\": \"A verification email has been sent to john@example.com. Please verify your account before logging in.\"\n}"
+            },
+            {
+              "name": "409 Conflict — Email already registered",
+              "status": "Conflict",
+              "code": 409,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 409,\n  \"message\": \"Email already registered\",\n  \"error\": \"Conflict\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Validation error",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": [\"email must be an email\", \"password must be longer than or equal to 8 characters\"],\n  \"error\": \"Bad Request\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🔑 Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.accessToken) {",
+                  "  pm.collectionVariables.set('access_token', res.accessToken);",
+                  "  pm.collectionVariables.set('refresh_token', res.refreshToken);",
+                  "  console.log('✅ Tokens saved to collection variables');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has accessToken', () => pm.expect(res.accessToken).to.be.a('string'));",
+                  "pm.test('Has refreshToken', () => pm.expect(res.refreshToken).to.be.a('string'));",
+                  "pm.test('Has user object', () => pm.expect(res.user).to.be.an('object'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password.\n\nOn success:\n- Issues a new access token (15 min) and refresh token (30 days)\n- Automatically saves both tokens as collection variables\n- Updates `lastLoginAt` timestamp on the user\n\n⚠️ If REQUIRE_EMAIL_VERIFICATION=true, unverified accounts will get 401."
+          },
+          "response": [
+            {
+              "name": "200 OK — Login successful",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                }
+              },
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refreshToken\": \"b7e2d91f4c3a8056ef2d1c9...\",\n  \"user\": {\n    \"id\": 1,\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"role\": \"USER\",\n    \"isEmailVerified\": true\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Invalid credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Invalid credentials\",\n  \"error\": \"Unauthorized\"\n}"
+            },
+            {
+              "name": "401 Unauthorized — Email not verified",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123!\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Please verify your email address before logging in\",\n  \"error\": \"Unauthorized\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "👤 Get Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(res.id).to.be.a('number'));",
+                  "pm.test('Has email', () => pm.expect(res.email).to.be.a('string'));",
+                  "pm.test('Has role', () => pm.expect(res.role).to.be.oneOf(['USER', 'ADMIN']));",
+                  "pm.test('No passwordHash exposed', () => pm.expect(res.passwordHash).to.be.undefined);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "🔒 Protected — requires Bearer token.\n\nReturns the full profile of the currently authenticated user. Password hash and token fields are stripped from the response."
+          },
+          "response": [
+            {
+              "name": "200 OK — Profile returned",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }]
+              },
+              "body": "{\n  \"id\": 1,\n  \"email\": \"john@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"role\": \"USER\",\n  \"isActive\": true,\n  \"isEmailVerified\": true,\n  \"lastLoginAt\": \"2026-04-10T10:00:00.000Z\",\n  \"createdAt\": \"2026-04-10T09:00:00.000Z\",\n  \"updatedAt\": \"2026-04-10T10:00:00.000Z\"\n}"
+            },
+            {
+              "name": "401 Unauthorized — No or invalid token",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "GET",
+                "header": []
+              },
+              "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🔄 Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.accessToken) {",
+                  "  pm.collectionVariables.set('access_token', res.accessToken);",
+                  "  pm.collectionVariables.set('refresh_token', res.refreshToken);",
+                  "  console.log('✅ New token pair saved');",
+                  "}",
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has new accessToken', () => pm.expect(res.accessToken).to.be.a('string'));",
+                  "pm.test('Has new refreshToken', () => pm.expect(res.refreshToken).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Exchange a refresh token for a new access + refresh token pair.\n\nTokens are **rotated** — the old refresh token is immediately invalidated. Send the new refresh_token on the next refresh.\n\n⚠️ Each refresh token can only be used ONCE. Using a consumed token returns 401."
+          },
+          "response": [
+            {
+              "name": "200 OK — New token pair issued",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"b7e2d91f4c3a8056ef2d1c9...\"\n}"
+                }
+              },
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refreshToken\": \"c9f3e02g5d4b9167fg3e2da...\"\n}"
+            },
+            {
+              "name": "401 Unauthorized — Token expired or already used",
+              "status": "Unauthorized",
+              "code": 401,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"invalid-or-used-token\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Invalid or expired refresh token\",\n  \"error\": \"Unauthorized\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🚪 Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.include('Logged out'));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('refresh_token', '');",
+                  "  console.log('🔒 refresh_token cleared');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "🔒 Protected — requires Bearer token.\n\nLogs out the current session by deleting this specific refresh token from the database. Other sessions (other devices) remain active."
+          },
+          "response": [
+            {
+              "name": "200 OK — Logged out",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"b7e2d91f4c3a...\"\n}"
+                }
+              },
+              "body": "{\n  \"message\": \"Logged out successfully\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🚪🚪 Logout All Devices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.include('all devices'));",
+                  "pm.collectionVariables.set('refresh_token', '');",
+                  "console.log('🔒 All sessions revoked, refresh_token cleared');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout-all",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout-all"]
+            },
+            "description": "🔒 Protected — requires Bearer token.\n\nLogs out from ALL devices simultaneously by deleting every refresh token belonging to this user. No request body needed."
+          },
+          "response": [
+            {
+              "name": "200 OK — All sessions revoked",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }]
+              },
+              "body": "{\n  \"message\": \"Logged out from all devices\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🔓 Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has safe message', () => pm.expect(pm.response.json().message).to.include('If that email exists'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "forgot-password"]
+            },
+            "description": "Request a password reset email.\n\nAlways returns 200 with the SAME message regardless of whether the email exists — this prevents user enumeration attacks.\n\nIf the email is registered and the account is active:\n- Generates a reset token (valid 15 min)\n- Sends a styled HTML email with a reset link\n\nThe reset link opens: GET /api/auth/reset-password?token=<token>"
+          },
+          "response": [
+            {
+              "name": "200 OK — Reset email sent (or silently ignored)",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john@example.com\"\n}"
+                }
+              },
+              "body": "{\n  \"message\": \"If that email exists, a reset link has been sent\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "🔏 Reset Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has success message', () => pm.expect(pm.response.json().message).to.include('reset successfully'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"newPassword\": \"NewStrongPass456!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "reset-password"]
+            },
+            "description": "Set a new password using the token from the reset email.\n\n1. Copy the `token` query param from the email link\n2. Paste it into the `reset_token` collection variable (or directly in the body)\n3. Send this request\n\nOn success:\n- Password is updated\n- All active refresh tokens are invalidated (forced re-login on all devices)\n\n⚠️ Token is valid for 15 minutes only and can be used once."
+          },
+          "response": [
+            {
+              "name": "200 OK — Password reset successful",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"abc123...\",\n  \"newPassword\": \"NewStrongPass456!\"\n}"
+                }
+              },
+              "body": "{\n  \"message\": \"Password reset successfully. Please log in again.\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Invalid or expired token",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"expired-or-wrong-token\",\n  \"newPassword\": \"NewStrongPass456!\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"Invalid or expired password reset token\",\n  \"error\": \"Bad Request\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "✅ Verify Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has success message', () => pm.expect(pm.response.json().message).to.include('verified'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{verify_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-email",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify-email"]
+            },
+            "description": "Verify an email address using the token from the verification email.\n\nThis is the **API/mobile version** — returns JSON.\n\nFor browser use, the email link opens: GET /api/auth/verify-email?token=<token> which shows a styled HTML result page.\n\n1. Copy the `token` query param from the email link\n2. Paste it into the `verify_token` collection variable (or directly in the body)\n3. Send this request\n\nToken is valid for 24 hours."
+          },
+          "response": [
+            {
+              "name": "200 OK — Email verified",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"abc123...\"\n}"
+                }
+              },
+              "body": "{\n  \"message\": \"Email verified successfully\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Invalid or expired token",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"expired-token\"\n}"
+                }
+              },
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"Invalid or expired verification token\",\n  \"error\": \"Bad Request\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "📨 Resend Verification Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/resend-verification",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "resend-verification"]
+            },
+            "description": "🔒 Protected — requires Bearer token.\n\nResends the email verification link to the authenticated user's email address.\n\nRules:\n- Returns 400 if the account is already verified\n- Enforces a **5-minute cooldown** between requests\n- Generates a fresh token (old link becomes invalid)\n\nUse the access_token from Register (user might not be verified yet at that point)."
+          },
+          "response": [
+            {
+              "name": "200 OK — Verification email sent",
+              "status": "OK",
+              "code": 200,
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }]
+              },
+              "body": "{\n  \"message\": \"Verification email sent. Please check your inbox.\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Already verified",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }]
+              },
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"Email is already verified\",\n  \"error\": \"Bad Request\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Cooldown active",
+              "status": "Bad Request",
+              "code": 400,
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer eyJhbGci..." }]
+              },
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"A verification email was sent recently. Please wait 5 minutes before requesting another.\",\n  \"error\": \"Bad Request\"\n}"
+            }
+          ]
+        }
+
+      ]
+    }
+  ]
+}
