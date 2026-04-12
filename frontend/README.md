@@ -1,5 +1,7 @@
 # Employee Management System — Frontend
 
+<!-- HR Operation EMS System — Frontend -->
+
 A production-ready Next.js 15 frontend for the EMS NestJS backend.
 
 ## Tech Stack
