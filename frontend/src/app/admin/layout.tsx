@@ -2,7 +2,7 @@
 
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Sidebar } from '@/components/layout/Sidebar';
-
+// new layout
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard requiredRole="ADMIN">
