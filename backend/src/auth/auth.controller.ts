@@ -23,6 +23,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { RequestVerificationEmailDto } from './dto/request-verification-email.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUser } from './decorators/current-user.decorator';
@@ -35,7 +36,11 @@ export class AuthController {
   // ── Register ─────────────────────────────────────────────────────────────
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({
+    summary: 'Register a new user',
+    description:
+      'Requires signupPortal: admin | employee. Admin → COMPANY_ADMIN (login only via admin portal). Employee → EMPLOYEE (login only via employee portal).',
+  })
   @ApiResponse({
     status: 201,
     description: 'Returns accessToken, refreshToken, and user object. A verification email is sent.',
@@ -56,8 +61,24 @@ export class AuthController {
     description: 'Returns accessToken (15 min) and refreshToken (30 days)',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials or account disabled' })
+  @ApiResponse({
+    status: 403,
+    description: 'Wrong portal — account was registered on the other portal (admin vs employee)',
+  })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('request-verification-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request verification email by address (no login required)',
+    description:
+      'Use when you cannot log in yet because email is unverified. Rate-limited by cooldown on the server.',
+  })
+  @ApiResponse({ status: 200, description: 'Generic success message (anti-enumeration)' })
+  requestVerificationEmail(@Body() dto: RequestVerificationEmailDto) {
+    return this.authService.requestVerificationEmail(dto.email);
   }
 
   // ── Refresh token ─────────────────────────────────────────────────────────
@@ -87,16 +108,6 @@ export class AuthController {
     return this.authService.logout(user.id, dto);
   }
 
-  @Post('logout-all')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Logout from all devices (invalidates all refresh tokens)' })
-  @ApiResponse({ status: 200, description: 'Logged out from all devices' })
-  logoutAll(@CurrentUser() user: AuthUser) {
-    return this.authService.logoutAll(user.id);
-  }
-
   // ── Profile ───────────────────────────────────────────────────────────────
 
   @Get('profile')
@@ -115,7 +126,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Request a password reset email',
-    description: 'Always returns 200 to prevent email enumeration. Token expires in 15 min.',
+    description: 'Always returns 200 to prevent email enumeration. Token expires in 30 min.',
   })
   @ApiResponse({ status: 200, description: 'Reset link sent if email exists' })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -125,12 +136,12 @@ export class AuthController {
   // ── Reset password ────────────────────────────────────────────────────────
 
   @Get('reset-password')
-  @ApiOperation({ summary: 'Show password reset form (browser link from email)' })
-  @ApiResponse({ status: 200, description: 'Returns HTML reset form or error page' })
+  @ApiOperation({ summary: 'Redirect password reset link to frontend page' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend reset-password route' })
   async resetPasswordPage(@Query('token') token: string, @Res() res: Response) {
-    const html = await this.authService.resetPasswordPage(token ?? '');
-    res.setHeader('Content-Type', 'text/html');
-    return res.status(200).send(html);
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const redirectUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token ?? '')}`;
+    return res.redirect(302, redirectUrl);
   }
 
   @Post('reset-password')

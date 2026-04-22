@@ -8,9 +8,19 @@ export function cn(...inputs: ClassValue[]) {
 
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
-    const data = error.response?.data;
-    if (typeof data?.message === 'string') return data.message;
-    if (Array.isArray(data?.message)) return data.message.join(', ');
+    const data = error.response?.data as
+      | { message?: unknown; error?: string }
+      | undefined;
+    const msg = data?.message;
+    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg)) return msg.join(', ');
+    if (msg && typeof msg === 'object') {
+      const nested = msg as { message?: unknown; error?: string };
+      if (typeof nested.message === 'string') return nested.message;
+      if (Array.isArray(nested.message)) return nested.message.join(', ');
+      if (typeof nested.error === 'string') return nested.error;
+    }
+    if (typeof data?.error === 'string') return data.error;
     if (error.message) return error.message;
   }
   if (error instanceof Error) return error.message;

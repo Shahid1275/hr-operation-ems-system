@@ -1,65 +1,57 @@
-import Link from "next/link";
-import { ChevronRight, Building2 } from "lucide-react";
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 
 export default function Home() {
+  const year = new Date().getFullYear();
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left Panel — Dark navy */}
-      <div className="hidden md:flex md:w-1/2 flex-col items-center justify-center bg-[#0f1b2d] px-14 py-16">
-        <div className="space-y-6 text-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/50">
-              <Building2 className="h-10 w-10 text-white" />
-            </div>
-            <span className="text-xs font-bold tracking-widest uppercase text-blue-300">EMS</span>
-          </div>
-          <h1 className="text-4xl font-bold leading-tight text-white">
-            Employee<br />Management<br />System
+    <main className="min-h-screen flex flex-col md:flex-row">
+      {/* Left: brand / value proposition */}
+      <section className="relative flex min-h-[42vh] w-full flex-1 flex-col justify-center overflow-hidden bg-[#0c1929] px-8 py-12 md:min-h-screen md:px-12 lg:px-16">
+        <div
+          className="pointer-events-none absolute -left-24 -top-24 h-[min(420px,80vw)] w-[min(420px,80vw)] rounded-full bg-sky-500/15 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative z-10 max-w-xl">
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+            Employee Management System
           </h1>
-          <p className="text-base text-blue-300 leading-relaxed max-w-xs mx-auto">
-            Streamline your workforce operations, track attendance, manage
-            payroll, and empower your team securely.
+          <p className="mt-5 text-base leading-relaxed text-slate-300 sm:text-lg">
+            Streamline your workforce operations, track attendance, manage payroll, and empower your team securely.
           </p>
         </div>
-        <p className="text-sm text-blue-400/60 absolute bottom-8">
-          © {new Date().getFullYear()} Employee Management System. All rights reserved.
-        </p>
-      </div>
+      </section>
 
-      {/* Right Panel — White */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-white px-8">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-slate-900">Welcome Back</h2>
-            <p className="text-sm text-slate-500">
-              Select your portal to securely access the system.
-            </p>
-          </div>
+      {/* Right: portal selection */}
+      <section className="flex min-h-[58vh] w-full flex-1 flex-col justify-center bg-white px-8 py-12 md:min-h-screen md:px-12 lg:px-16">
+        <div className="mx-auto w-full max-w-md">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Welcome Back</h2>
+          <p className="mt-2 text-sm text-slate-500 sm:text-base">
+            Select your portal to securely access the system.
+          </p>
 
-          <div className="space-y-3">
+          <div className="mt-10 flex flex-col gap-4">
             <Link
               href="/login?portal=admin"
-              className="flex items-center justify-between w-full rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-left text-sm font-medium text-slate-900 transition-all hover:border-[#1a3a5c] hover:bg-white hover:shadow-sm group"
+              className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-left text-base font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:shadow-md"
             >
               <span>Admin Portal</span>
-              <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1a3a5c] transition-colors" />
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-600" />
             </Link>
-
             <Link
               href="/login?portal=employee"
-              className="flex items-center justify-between w-full rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-left text-sm font-medium text-slate-900 transition-all hover:border-[#1a3a5c] hover:bg-white hover:shadow-sm group"
+              className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-left text-base font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:shadow-md"
             >
               <span>Employee Portal</span>
-              <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1a3a5c] transition-colors" />
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-600" />
             </Link>
           </div>
 
-          {/* Mobile copyright */}
-          <p className="text-center text-xs text-slate-400 md:hidden">
-            © {new Date().getFullYear()} Employee Management System. All rights reserved.
+          <p className="mt-14 text-center text-xs text-slate-400 sm:text-sm">
+            © {year} Employee Management System. All rights reserved.
           </p>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

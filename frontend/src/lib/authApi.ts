@@ -1,34 +1,48 @@
-import api from './api';
+import api, { unwrapEnvelope } from './api';
 import type { LoginResponse, RegisterResponse, User } from '@/types';
 
 export const authApi = {
-  register: (data: { email: string; password: string; firstName?: string; lastName?: string }) =>
-    api.post<RegisterResponse>('/auth/register', data).then((r) => r.data),
+  register: (data: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    signupPortal: 'admin' | 'employee';
+  }) => api.post('/auth/register', data).then((r) => unwrapEnvelope<RegisterResponse>(r.data)),
 
-  login: (data: { email: string; password: string }) =>
-    api.post<LoginResponse>('/auth/login', data).then((r) => r.data),
+  login: (data: { email: string; password: string; portal: 'admin' | 'employee' }) =>
+    api.post('/auth/login', data).then((r) => unwrapEnvelope<LoginResponse>(r.data)),
 
   refresh: (refreshToken: string) =>
-    api.post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken }).then((r) => r.data),
+    api
+      .post('/auth/refresh', { refreshToken })
+      .then((r) => unwrapEnvelope<{ accessToken: string; refreshToken: string }>(r.data)),
 
   logout: (refreshToken: string) =>
-    api.post<{ message: string }>('/auth/logout', { refreshToken }).then((r) => r.data),
-
-  logoutAll: () =>
-    api.post<{ message: string }>('/auth/logout-all').then((r) => r.data),
+    api.post('/auth/logout', { refreshToken }).then((r) => unwrapEnvelope<{ message: string }>(r.data)),
 
   getProfile: () =>
-    api.get<User>('/auth/profile').then((r) => r.data),
+    api.get('/auth/profile').then((r) => unwrapEnvelope<User>(r.data)),
 
   forgotPassword: (email: string) =>
-    api.post<{ message: string }>('/auth/forgot-password', { email }).then((r) => r.data),
+    api
+      .post('/auth/forgot-password', { email })
+      .then((r) => unwrapEnvelope<{ message: string }>(r.data)),
 
-  resetPassword: (token: string, password: string) =>
-    api.post<{ message: string }>('/auth/reset-password', { token, password }).then((r) => r.data),
+  resetPassword: (token: string, newPassword: string) =>
+    api
+      .post('/auth/reset-password', { token, newPassword })
+      .then((r) => unwrapEnvelope<{ message: string }>(r.data)),
 
   verifyEmail: (token: string) =>
-    api.post<{ message: string }>('/auth/verify-email', { token }).then((r) => r.data),
+    api.post('/auth/verify-email', { token }).then((r) => unwrapEnvelope<{ message: string }>(r.data)),
 
   resendVerification: () =>
-    api.post<{ message: string }>('/auth/resend-verification').then((r) => r.data),
+    api.post('/auth/resend-verification').then((r) => unwrapEnvelope<{ message: string }>(r.data)),
+
+  /** No JWT — for users who cannot log in until verified */
+  requestVerificationEmail: (email: string) =>
+    api
+      .post('/auth/request-verification-email', { email })
+      .then((r) => unwrapEnvelope<{ message: string }>(r.data)),
 };

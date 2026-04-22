@@ -3,10 +3,12 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
+import { RolePermissionMatrix } from '../constants/permissions';
 
 export interface JwtPayload {
   sub: number;
   email: string;
+  systemRole?: string;
 }
 
 @Injectable()
@@ -40,6 +42,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       emailVerifyExpiry: _eve,
       ...result
     } = user;
-    return result;
+    return {
+      ...result,
+      permissions: RolePermissionMatrix[result.systemRole] ?? [],
+    };
   }
 }

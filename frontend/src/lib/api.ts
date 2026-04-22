@@ -1,11 +1,32 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { env } from '@/core/config/env';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
+const API_BASE = env.apiUrl;
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
+
+export interface ApiEnvelope<T> {
+  success: boolean;
+  path: string;
+  timestamp: string;
+  data: T;
+}
+
+export function unwrapEnvelope<T>(payload: T | ApiEnvelope<T>): T {
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'data' in payload &&
+    'success' in payload
+  ) {
+    return (payload as ApiEnvelope<T>).data;
+  }
+
+  return payload as T;
+}
 
 // ── Request interceptor: attach access token ──────────────────────────────
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -51,13 +72,14 @@ api.interceptors.response.use(
         if (!refreshToken) throw new Error('No refresh token');
 
         const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        const refreshed = unwrapEnvelope<{ accessToken: string; refreshToken: string }>(data);
+        localStorage.setItem('accessToken', refreshed.accessToken);
+        localStorage.setItem('refreshToken', refreshed.refreshToken);
 
-        refreshQueue.forEach((cb) => cb(data.accessToken));
+        refreshQueue.forEach((cb) => cb(refreshed.accessToken));
         refreshQueue = [];
 
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`;
         return api(originalRequest);
       } catch {
         localStorage.removeItem('accessToken');

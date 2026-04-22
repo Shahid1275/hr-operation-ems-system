@@ -9,13 +9,17 @@ export class EmailService implements OnModuleInit {
   constructor(private readonly config: ConfigService) {
     const host = config.get<string>('SMTP_HOST');
     if (host) {
+      const rawPass = config.get<string>('SMTP_PASS') ?? '';
+      // Gmail app passwords are often pasted with spaces; strip for SMTP auth
+      const pass = rawPass.replace(/\s+/g, '');
       this.transporter = nodemailer.createTransport({
         host,
-        port: config.get<number>('SMTP_PORT') ?? 587,
+        port: Number(config.get('SMTP_PORT')) || 587,
         secure: config.get<string>('SMTP_SECURE') === 'true',
+        requireTLS: config.get<string>('SMTP_SECURE') !== 'true',
         auth: {
           user: config.get<string>('SMTP_USER'),
-          pass: config.get<string>('SMTP_PASS'),
+          pass,
         },
       });
     } else {
@@ -23,7 +27,12 @@ export class EmailService implements OnModuleInit {
     }
   }
 
-  /** Verify SMTP connection on startup so misconfiguration is caught early */
+  /** True when SMTP is configured and a transporter exists (startup verify may still have failed). */
+  isSmtpAvailable(): boolean {
+    return !!this.config.get<string>('SMTP_HOST')?.trim() && this.transporter !== null;
+  }
+
+  /** Verify SMTP on startup. We keep the transporter even if verify() fails — some networks block verify while send works. */
   async onModuleInit() {
     if (this.transporter) {
       try {
@@ -31,10 +40,10 @@ export class EmailService implements OnModuleInit {
         console.log('[EmailService] SMTP connection verified successfully');
       } catch (err) {
         console.error(
-          `[EmailService] SMTP connection failed — emails will NOT be sent. Check SMTP_* env vars. Error: ${(err as Error).message}`,
+          `[EmailService] SMTP verify() failed (emails may still work): ${(err as Error).message}. If sends fail, check SMTP_USER / SMTP_PASS (Gmail App Password) and restart.`,
         );
-        // Do NOT throw — app should still start; emails just won't send
-        this.transporter = null;
+        // Do NOT clear transporter — previously this nulled the client so NO mail was ever sent
+        // while the UI still said "check your inbox". Real sendMail() will surface auth errors.
       }
     }
   }
@@ -44,10 +53,10 @@ export class EmailService implements OnModuleInit {
     rawToken: string,
     firstName?: string,
   ): Promise<void> {
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
-    const url = `${appUrl}/api/auth/reset-password?token=${rawToken}`;
+    const frontendUrl = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    const url = `${frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
     const name = firstName ?? 'there';
-    const subject = '🔐 Reset your password — Employee Management System';
+    const subject = 'Reset your password — Employee Management System';
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -95,9 +104,9 @@ export class EmailService implements OnModuleInit {
       <p class="greeting">Hi ${name} 👋</p>
       <p class="text">
         We received a request to reset your password. Click the button below to create a new password.
-        This link is valid for <strong>15 minutes</strong> only.
+        This link is valid for <strong>30 minutes</strong> only.
       </p>
-      <span class="expires">⏰ Expires in 15 minutes</span>
+      <span class="expires">⏰ Expires in 30 minutes</span>
       <div class="btn-wrap">
         <a href="${url}" class="btn">Reset My Password</a>
       </div>
@@ -126,10 +135,10 @@ export class EmailService implements OnModuleInit {
     rawToken: string,
     firstName?: string,
   ): Promise<void> {
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
-    const url = `${appUrl}/api/auth/verify-email?token=${rawToken}`;
+    const frontendUrl = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    const url = `${frontendUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
     const name = firstName ?? 'there';
-    const subject = '— Employee Management System';
+    const subject = 'Verify your email — Employee Management System';
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -206,15 +215,27 @@ export class EmailService implements OnModuleInit {
     devToken?: string,
   ): Promise<void> {
     if (!this.transporter) {
-      // Dev mode — SMTP not configured, log token to console for testing
-      console.warn(`[DEV EMAIL] To: ${to} | Subject: "${subject}"`);
-      if (devToken) {
-        console.warn(`[DEV EMAIL] Token: ${devToken}`);
+      const host = this.config.get<string>('SMTP_HOST')?.trim();
+      if (host) {
+        console.error(
+          `[EmailService] SMTP_HOST is set but transporter is missing — cannot send to ${to}. Restart the server after fixing .env.`,
+        );
+      } else {
+        console.warn(`[DEV EMAIL] To: ${to} | Subject: "${subject}"`);
+        if (devToken) {
+          console.warn(`[DEV EMAIL] Token: ${devToken}`);
+        }
       }
       return;
     }
 
-    const from = `"${this.config.get('MAIL_FROM_NAME', 'App')}" <${this.config.get('MAIL_FROM')}>`;
+    const mailFrom =
+      this.config.get<string>('MAIL_FROM')?.trim() ||
+      this.config.get<string>('SMTP_USER')?.trim() ||
+      'noreply@localhost';
+    const fromName =
+      this.config.get<string>('MAIL_FROM_NAME')?.trim() || 'Employee Management System';
+    const from = `"${fromName}" <${mailFrom}>`;
     try {
       await this.transporter.sendMail({ from, to, subject, html });
       console.log(`[EmailService] Email sent → ${to} | ${subject}`);

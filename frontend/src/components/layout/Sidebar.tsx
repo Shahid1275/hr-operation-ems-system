@@ -6,54 +6,67 @@ import {
   LayoutDashboard,
   Users,
   LogOut,
-  LogOutIcon,
   UserCircle,
   ShieldCheck,
   Menu,
   X,
+  CalendarCheck2,
+  Wallet,
+  FileText,
+  Settings,
+  ScrollText,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { getInitials, getFullName } from '@/lib/utils';
+import type { SystemRole } from '@/types';
 
 interface NavItem {
   label: string;
   href: string;
-  icon: React.ElementType;
+  icon: ComponentType<{ className?: string }>;
+}
+
+interface SidebarContentProps {
+  portalLabel: string;
+  nav: NavItem[];
+  pathname: string;
+  user: ReturnType<typeof useAuthStore.getState>['user'];
+  loggingOut: boolean;
+  onNavigate: () => void;
+  onLogout: () => Promise<void>;
 }
 
 const adminNav: NavItem[] = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'Leave', href: '/admin/leave', icon: CalendarCheck2 },
+  { label: 'Payroll', href: '/admin/payroll', icon: Wallet },
+  { label: 'Documents', href: '/admin/documents', icon: FileText },
+  { label: 'Audit Logs', href: '/admin/audit', icon: ScrollText },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
   { label: 'Profile', href: '/admin/profile', icon: UserCircle },
 ];
 
 const employeeNav: NavItem[] = [
   { label: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard },
+  { label: 'Leave', href: '/employee/leave', icon: CalendarCheck2 },
   { label: 'Profile', href: '/employee/profile', icon: UserCircle },
 ];
 
-export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, logout, logoutAll } = useAuthStore();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const nav = role === 'ADMIN' ? adminNav : employeeNav;
-  const portalLabel = role === 'ADMIN' ? 'Admin Portal' : 'Employee Portal';
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    await logout();
-    router.replace('/');
-  };
-
-  const SidebarContent = () => (
+function SidebarContent({
+  portalLabel,
+  nav,
+  pathname,
+  user,
+  loggingOut,
+  onNavigate,
+  onLogout,
+}: SidebarContentProps) {
+  return (
     <div className="flex h-full flex-col">
-      {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20">
           <ShieldCheck className="h-5 w-5 text-white" />
@@ -64,7 +77,6 @@ export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {nav.map(({ label, href, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
@@ -72,7 +84,7 @@ export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
             <Link
               key={href}
               href={href}
-              onClick={() => setMobileOpen(false)}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 active
@@ -87,7 +99,6 @@ export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
         })}
       </nav>
 
-      {/* User footer */}
       <div className="border-t border-white/10 px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-white text-xs font-semibold">
@@ -101,23 +112,34 @@ export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
           </div>
         </div>
         <button
-          onClick={handleLogout}
+          onClick={onLogout}
           disabled={loggingOut}
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-blue-200 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {loggingOut ? 'Signing out…' : 'Sign Out'}
         </button>
-        <button
-          onClick={() => { logoutAll(); router.replace('/'); }}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-blue-200 hover:bg-white/10 hover:text-white transition-colors"
-        >
-          <LogOutIcon className="h-4 w-4" />
-          Sign Out All Devices
-        </button>
       </div>
     </div>
   );
+}
+
+export function Sidebar({ role }: { role: SystemRole }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const isAdminPortal = role !== 'EMPLOYEE';
+  const nav = isAdminPortal ? adminNav : employeeNav;
+  const portalLabel = isAdminPortal ? 'Admin Portal' : 'Employee Portal';
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+    router.replace('/');
+  };
 
   return (
     <>
@@ -144,12 +166,28 @@ export function Sidebar({ role }: { role: 'ADMIN' | 'USER' }) {
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <SidebarContent />
+        <SidebarContent
+          portalLabel={portalLabel}
+          nav={nav}
+          pathname={pathname}
+          user={user}
+          loggingOut={loggingOut}
+          onNavigate={() => setMobileOpen(false)}
+          onLogout={handleLogout}
+        />
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex-col bg-[#0f1b2d]">
-        <SidebarContent />
+        <SidebarContent
+          portalLabel={portalLabel}
+          nav={nav}
+          pathname={pathname}
+          user={user}
+          loggingOut={loggingOut}
+          onNavigate={() => setMobileOpen(false)}
+          onLogout={handleLogout}
+        />
       </aside>
     </>
   );

@@ -1,28 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import helmet from 'helmet';
-
-const SILENT_CONTEXTS = new Set([
-  'NestFactory',
-  'InstanceLoader',
-  'RoutesResolver',
-  'RouterExplorer',
-  'NestApplication',
-]);
-
-class FilteredLogger extends ConsoleLogger {
-  log(message: string, context?: string) {
-    if (context && SILENT_CONTEXTS.has(context)) return;
-    super.log(message, context);
-  }
-}
+import { StructuredLogger } from './platform/logging/structured-logger.service';
+import { ResponseEnvelopeInterceptor } from './platform/interceptors/response-envelope.interceptor';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    logger: new FilteredLogger(),
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(StructuredLogger));
+  app.setGlobalPrefix('api', {
+    exclude: [
+      // Human-friendly URLs on the API host (e.g. bookmarks / mistaken port) → frontend or auth flow
+      { path: 'login', method: RequestMethod.GET },
+      { path: 'register', method: RequestMethod.GET },
+      { path: 'reset-password', method: RequestMethod.GET },
+      { path: 'verify-email', method: RequestMethod.GET },
+    ],
   });
 
   // ── Security headers ──────────────────────────────────────────────────────
@@ -52,6 +49,7 @@ async function bootstrap() {
 
   // ── Global pipes & filters ────────────────────────────────────────────────
   app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -61,7 +59,9 @@ async function bootstrap() {
     }),
   );
 
-  app.setGlobalPrefix('api', { exclude: ['reset-password', 'verify-email', '/'] });
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
 
   // ── Swagger ───────────────────────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
@@ -84,7 +84,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/api`);
-  console.log(`Swagger docs available at: http://localhost:${port}/docs`);
+  const logger = app.get(StructuredLogger);
+  logger.log(`Application listening on http://localhost:${port}/api`, 'Bootstrap');
+  logger.log(`Swagger docs on http://localhost:${port}/docs`, 'Bootstrap');
 }
 bootstrap();

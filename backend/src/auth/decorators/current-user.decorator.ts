@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role, SignupPortal, SystemRole, UserStatus } from '@prisma/client';
 
 export interface AuthUser {
   id: number;
@@ -7,6 +7,11 @@ export interface AuthUser {
   firstName: string | null;
   lastName: string | null;
   role: Role;
+  systemRole: SystemRole;
+  signupPortal: SignupPortal;
+  status: UserStatus;
+  companyId: string | null;
+  permissions?: string[];
   isActive: boolean;
   isEmailVerified: boolean;
   lastLoginAt: Date | null;

@@ -1,8 +1,10 @@
 import {
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
   BadRequestException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +19,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { generateToken, hashToken } from '../common/utils/token.util';
+import { Role, SignupPortal, SystemRole } from '@prisma/client';
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 
@@ -33,12 +36,25 @@ export class AuthService {
   // ── Register ─────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto) {
-    const user = await this.usersService.create(
-      dto.email.toLowerCase().trim(),
-      dto.password,
-      dto.firstName?.trim(),
-      dto.lastName?.trim(),
-    );
+    const signupPortal =
+      dto.signupPortal === 'admin'
+        ? SignupPortal.ADMIN_PORTAL
+        : SignupPortal.EMPLOYEE_PORTAL;
+    const systemRole =
+      dto.signupPortal === 'admin'
+        ? SystemRole.COMPANY_ADMIN
+        : SystemRole.EMPLOYEE;
+    const role = dto.signupPortal === 'admin' ? Role.ADMIN : Role.USER;
+
+    const user = await this.usersService.create({
+      email: dto.email.toLowerCase().trim(),
+      plainPassword: dto.password,
+      firstName: dto.firstName?.trim(),
+      lastName: dto.lastName?.trim(),
+      signupPortal,
+      systemRole,
+      role,
+    });
 
     // Generate and store email verification token
     const rawToken = generateToken();
@@ -52,7 +68,9 @@ export class AuthService {
     this.emailService
       .sendEmailVerification(user.email, rawToken, user.firstName ?? undefined)
       .catch((err: Error) =>
-        console.error(`[AuthService] Registration email failed for ${user.email}: ${err.message}`),
+        console.error(
+          `[AuthService] Registration email failed for ${user.email}: ${err.message}. Check backend logs and SMTP_* in .env (Gmail needs an App Password).`,
+        ),
       );
 
     const tokens = await this.issueTokens(user.id, user.email);
@@ -73,6 +91,18 @@ export class AuthService {
 
     const match = await bcrypt.compare(dto.password, user.passwordHash);
     if (!match) throw new UnauthorizedException('Invalid credentials');
+
+    const expectedPortal =
+      dto.portal === 'admin'
+        ? SignupPortal.ADMIN_PORTAL
+        : SignupPortal.EMPLOYEE_PORTAL;
+    if (user.signupPortal !== expectedPortal) {
+      throw new ForbiddenException(
+        user.signupPortal === SignupPortal.ADMIN_PORTAL
+          ? 'This account was registered on the Admin portal. Use the Admin portal to sign in.'
+          : 'This account was registered on the Employee portal. Use the Employee portal to sign in.',
+      );
+    }
 
     const requireVerification =
       this.config.get('REQUIRE_EMAIL_VERIFICATION') === 'true';
@@ -126,11 +156,6 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  async logoutAll(userId: number) {
-    await this.prisma.refreshToken.deleteMany({ where: { userId } });
-    return { message: 'Logged out from all devices' };
-  }
-
   // ── Forgot password ───────────────────────────────────────────────────────
 
   async forgotPassword(dto: ForgotPasswordDto) {
@@ -142,7 +167,7 @@ export class AuthService {
       await this.usersService.setPasswordResetToken(
         user.id,
         hashToken(rawToken),
-        new Date(Date.now() + 15 * 60 * 1000), // 15 min
+        new Date(Date.now() + 30 * 60 * 1000), // 30 min
       );
       this.emailService
         .sendPasswordReset(user.email, rawToken, user.firstName ?? undefined)
@@ -228,7 +253,7 @@ export class AuthService {
     <div class="reasons">
       <p>Possible reasons:</p>
       <ul>
-        <li>The link expired (valid for 15 minutes only)</li>
+        <li>The link expired (valid for 30 minutes only)</li>
         <li>The link was already used</li>
         <li>The link was copied incorrectly</li>
       </ul>
@@ -428,6 +453,7 @@ export class AuthService {
   }
 
   async verifyEmailPage(token: string): Promise<string> {
+    const fe = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
     let success = false;
     let firstName = '';
     try {
@@ -494,7 +520,7 @@ export class AuthService {
       <div class="step"><strong>🔐</strong>Login Now</div>
       <div class="step"><strong>🚀</strong>Get Started</div>
     </div>
-    <a href="http://localhost:3000/docs" class="btn">Go to Dashboard</a>
+    <a href="${fe}/login" class="btn">Go to Sign In</a>
     <p class="footer-note">© ${new Date().getFullYear()} Employee Management System</p>
   </div>
 </body>
@@ -545,11 +571,66 @@ export class AuthService {
         <li>The link was copied incorrectly</li>
       </ul>
     </div>
-    <a href="http://localhost:3000/docs" class="btn">Request a New Link</a>
+    <a href="${fe}/pending-verification" class="btn">Request a New Link</a>
     <p class="footer-note">© ${new Date().getFullYear()} Employee Management System</p>
   </div>
 </body>
 </html>`;
+  }
+
+  /**
+   * Public: request a new verification email by address (no JWT).
+   * Same response whether or not the user exists (anti-enumeration).
+   */
+  async requestVerificationEmail(email: string) {
+    const normalized = email.toLowerCase().trim();
+    const generic = {
+      message:
+        'If an account exists and still needs verification, check your inbox (and spam) for a new link.',
+    };
+
+    const user = await this.usersService.findByEmail(normalized);
+    if (!user || !user.isActive || user.isEmailVerified) {
+      return generic;
+    }
+
+    const COOLDOWN_MS = 2 * 60 * 1000;
+    if (user.emailVerifyExpiry && user.emailVerifyToken) {
+      const assumedIssuedMs =
+        user.emailVerifyExpiry.getTime() - 24 * 60 * 60 * 1000;
+      if (Date.now() - assumedIssuedMs < COOLDOWN_MS) {
+        return {
+          message:
+            'A verification link was sent recently. Please wait a couple of minutes before requesting again.',
+        };
+      }
+    }
+
+    const rawToken = generateToken();
+    await this.usersService.setEmailVerifyToken(
+      user.id,
+      hashToken(rawToken),
+      new Date(Date.now() + 24 * 60 * 60 * 1000),
+    );
+
+    if (!this.emailService.isSmtpAvailable()) {
+      console.warn('[AuthService] requestVerificationEmail: SMTP not configured');
+      return generic;
+    }
+
+    try {
+      await this.emailService.sendEmailVerification(
+        user.email,
+        rawToken,
+        user.firstName ?? undefined,
+      );
+    } catch (err) {
+      console.error(
+        `[AuthService] requestVerificationEmail send failed: ${(err as Error).message}`,
+      );
+    }
+
+    return generic;
   }
 
   // ── Resend verification ───────────────────────────────────────────────────
@@ -578,19 +659,39 @@ export class AuthService {
       hashToken(rawToken),
       new Date(Date.now() + 24 * 60 * 60 * 1000),
     );
-    this.emailService
-      .sendEmailVerification(user.email, rawToken, user.firstName ?? undefined)
-      .catch((err: Error) =>
-        console.error(`[AuthService] Resend verification email failed for ${user.email}: ${err.message}`),
-      );
 
-    return { message: 'Verification email sent. Please check your inbox.' };
+    if (!this.emailService.isSmtpAvailable()) {
+      throw new ServiceUnavailableException(
+        'Email is not configured (set SMTP_HOST, SMTP_USER, and SMTP_PASS in the server .env). For local testing without mail, clear SMTP_HOST.',
+      );
+    }
+
+    try {
+      await this.emailService.sendEmailVerification(
+        user.email,
+        rawToken,
+        user.firstName ?? undefined,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[AuthService] Resend verification email failed for ${user.email}: ${msg}`);
+      throw new ServiceUnavailableException(
+        `Could not send email: ${msg}. For Gmail use an App Password (not your normal password) and ensure MAIL_FROM matches SMTP_USER.`,
+      );
+    }
+
+    return { message: 'Verification email sent. Please check your inbox (and spam).' };
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private async issueTokens(userId: number, email: string) {
-    const accessToken = this.jwtService.sign({ sub: userId, email });
+    const user = await this.usersService.findById(userId);
+    const accessToken = this.jwtService.sign({
+      sub: userId,
+      email,
+      systemRole: user?.systemRole,
+    });
 
     const rawRefreshToken = generateToken();
     const expiresAt = new Date();
@@ -609,6 +710,10 @@ export class AuthService {
     firstName: string | null;
     lastName: string | null;
     role: string;
+    systemRole?: string;
+    signupPortal?: string;
+    status?: string;
+    companyId?: string | null;
     isEmailVerified: boolean;
   }) {
     return {
@@ -617,6 +722,10 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      systemRole: user.systemRole,
+      signupPortal: user.signupPortal,
+      status: user.status,
+      companyId: user.companyId,
       isEmailVerified: user.isEmailVerified,
     };
   }

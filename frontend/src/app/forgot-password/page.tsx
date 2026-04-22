@@ -8,9 +8,9 @@ import Link from 'next/link';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
 import { authApi } from '@/lib/authApi';
 import { getApiErrorMessage } from '@/lib/utils';
+import { notify } from '@/lib/notify';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -18,8 +18,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function ForgotPasswordPage() {
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   const {
     register,
@@ -28,19 +27,17 @@ export default function ForgotPasswordPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
-    setError('');
-    setSuccess('');
     try {
       const result = await authApi.forgotPassword(data.email);
-      setSuccess(result.message ?? 'If that email exists, a reset link has been sent.');
+      notify.success(result.message ?? 'If that email exists, a reset link has been sent.');
+      setSubmitted(true);
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      notify.error(getApiErrorMessage(err));
     }
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Left Panel */}
       <div className="hidden md:flex md:w-1/2 flex-col justify-between bg-[#0f1b2d] px-14 py-16">
         <div />
         <div className="space-y-6">
@@ -62,7 +59,6 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
 
-      {/* Right Panel */}
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-8">
         <div className="w-full max-w-sm space-y-7">
           <div className="space-y-1">
@@ -72,10 +68,11 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
 
-          {error && <Alert variant="error" message={error} onClose={() => setError('')} />}
-          {success && <Alert variant="success" title="Email sent!" message={success} />}
-
-          {!success && (
+          {submitted ? (
+            <p className="text-sm text-slate-600">
+              Check your inbox (and spam) for the reset link, then return to sign in.
+            </p>
+          ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Input
                 label="Email address"
@@ -93,7 +90,9 @@ export default function ForgotPasswordPage() {
 
           <p className="flex items-center justify-center gap-1.5 text-sm text-slate-500">
             <ArrowLeft className="h-3.5 w-3.5" />
-            <Link href="/login" className="text-blue-600 hover:underline">Back to Sign In</Link>
+            <Link href="/login" className="text-blue-600 hover:underline">
+              Back to Sign In
+            </Link>
           </p>
         </div>
       </div>

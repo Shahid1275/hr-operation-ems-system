@@ -15,7 +15,7 @@
    - [Email Verification](#62-email-verification)
    - [Login](#63-login)
    - [Refresh Token](#64-refresh-token)
-   - [Logout / Logout All](#65-logout--logout-all)
+   - [Logout](#65-logout)
    - [Forgot Password](#66-forgot-password)
    - [Reset Password](#67-reset-password)
    - [Resend Verification Email](#68-resend-verification-email)
@@ -330,7 +330,7 @@ Returns JSON `{ "message": "Email verified successfully" }`
 
 ---
 
-### 6.5 Logout / Logout All
+### 6.5 Logout
 
 **Endpoint:** `POST /api/auth/logout` *(requires Bearer token)*
 
@@ -339,10 +339,6 @@ Returns JSON `{ "message": "Email verified successfully" }`
 { "refreshToken": "current-session-refresh-token" }
 ```
 Deletes only this session's refresh token from DB.
-
-**Endpoint:** `POST /api/auth/logout-all` *(requires Bearer token)*
-
-No body required. Deletes ALL refresh tokens for this user — logs out from every device.
 
 ---
 
@@ -617,7 +613,6 @@ If the database is ever leaked, the hashes cannot be reversed to usable tokens.
 | `POST` | `/api/auth/login` | No | Login, returns access + refresh tokens |
 | `POST` | `/api/auth/refresh` | No | Rotate refresh token, get new pair |
 | `POST` | `/api/auth/logout` | Bearer JWT | Logout this session (deletes refresh token) |
-| `POST` | `/api/auth/logout-all` | Bearer JWT | Logout all devices |
 | `GET` | `/api/auth/profile` | Bearer JWT | Get authenticated user's profile |
 | `POST` | `/api/auth/forgot-password` | No | Request password reset email |
 | `GET` | `/api/auth/reset-password?token=` | No | Browser: show HTML password reset form |

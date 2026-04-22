@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { notify } from '@/lib/notify';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/authApi';
@@ -25,23 +25,18 @@ type FormData = z.infer<typeof schema>;
 export default function EmployeeProfilePage() {
   const { user } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
-  const [resendMsg, setResendMsg] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async () => {
-    setError('');
-    setSuccess('');
     try {
       await authApi.forgotPassword(user?.email ?? '');
-      setSuccess('A password reset link has been sent to your email address.');
+      notify.success('A password reset link has been sent to your email address.');
       reset();
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      notify.error(getApiErrorMessage(err));
     }
   };
 
@@ -49,9 +44,9 @@ export default function EmployeeProfilePage() {
     setResendLoading(true);
     try {
       const res = await authApi.resendVerification();
-      setResendMsg(res.message ?? 'Verification email sent!');
+      notify.success(res.message ?? 'Verification email sent!');
     } catch (err) {
-      setResendMsg(getApiErrorMessage(err));
+      notify.error(getApiErrorMessage(err));
     } finally {
       setResendLoading(false);
     }
@@ -131,7 +126,6 @@ export default function EmployeeProfilePage() {
               >
                 Resend Verification Email
               </Button>
-              {resendMsg && <p className="text-sm text-green-600">{resendMsg}</p>}
             </div>
           )}
         </div>
@@ -144,8 +138,6 @@ export default function EmployeeProfilePage() {
           <p className="text-xs text-slate-500 mt-0.5">A reset link will be sent to your email.</p>
         </div>
         <div className="p-6 max-w-sm">
-          {error && <Alert variant="error" message={error} onClose={() => setError('')} className="mb-4" />}
-          {success && <Alert variant="success" message={success} onClose={() => setSuccess('')} className="mb-4" />}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="relative">
               <Input

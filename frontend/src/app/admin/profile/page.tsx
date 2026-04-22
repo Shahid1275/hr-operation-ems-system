@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Eye, EyeOff, User, Mail, Shield, Clock, MailCheck } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { notify } from '@/lib/notify';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/authApi';
@@ -24,12 +24,9 @@ const passwordSchema = z.object({
 type PasswordData = z.infer<typeof passwordSchema>;
 
 export default function AdminProfilePage() {
-  const { user, refreshProfile } = useAuthStore();
+  const { user } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
-  const [resendMsg, setResendMsg] = useState('');
 
   const {
     register,
@@ -38,28 +35,23 @@ export default function AdminProfilePage() {
     formState: { errors, isSubmitting },
   } = useForm<PasswordData>({ resolver: zodResolver(passwordSchema) });
 
-  const onPasswordSubmit = async (data: PasswordData) => {
-    setError('');
-    setSuccess('');
+  const onPasswordSubmit = async () => {
     try {
-      // The reset-password flow requires a token from email,
-      // so we use forgot-password to trigger the flow
       await authApi.forgotPassword(user?.email ?? '');
-      setSuccess('A password reset email has been sent. Please check your inbox to complete the change.');
+      notify.success('A password reset email has been sent. Please check your inbox to complete the change.');
       reset();
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      notify.error(getApiErrorMessage(err));
     }
   };
 
   const handleResendVerification = async () => {
     setResendLoading(true);
-    setResendMsg('');
     try {
       const result = await authApi.resendVerification();
-      setResendMsg(result.message ?? 'Verification email sent!');
+      notify.success(result.message ?? 'Verification email sent!');
     } catch (err) {
-      setResendMsg(getApiErrorMessage(err));
+      notify.error(getApiErrorMessage(err));
     } finally {
       setResendLoading(false);
     }
@@ -87,7 +79,7 @@ export default function AdminProfilePage() {
             <h2 className="text-lg font-bold text-slate-900">
               {getFullName(user.firstName, user.lastName, user.email)}
             </h2>
-            <Badge variant="info"><Shield className="h-3 w-3 mr-1 inline" />{user.role}</Badge>
+            <Badge variant="info"><Shield className="h-3 w-3 mr-1 inline" />{user.systemRole}</Badge>
             <Badge variant={user.isActive ? 'success' : 'danger'}>
               {user.isActive ? 'Active' : 'Inactive'}
             </Badge>
@@ -118,7 +110,6 @@ export default function AdminProfilePage() {
 
           {!user.isEmailVerified && (
             <div className="mt-4 flex items-center gap-3">
-              {resendMsg && <p className="text-sm text-green-600">{resendMsg}</p>}
               <Button
                 variant="outline"
                 size="sm"
@@ -141,9 +132,6 @@ export default function AdminProfilePage() {
           </p>
         </div>
         <div className="p-6 max-w-sm">
-          {error && <Alert variant="error" message={error} onClose={() => setError('')} className="mb-4" />}
-          {success && <Alert variant="success" message={success} onClose={() => setSuccess('')} className="mb-4" />}
-
           <form onSubmit={handleSubmit(onPasswordSubmit)} className="space-y-4">
             <div className="relative">
               <Input

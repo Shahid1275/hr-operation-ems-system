@@ -1,18 +1,24 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { Role, SignupPortal, SystemRole, User } from '@prisma/client';
+
+export interface CreateUserParams {
+  email: string;
+  plainPassword: string;
+  firstName?: string;
+  lastName?: string;
+  signupPortal: SignupPortal;
+  systemRole: SystemRole;
+  role: Role;
+}
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    email: string,
-    plainPassword: string,
-    firstName?: string,
-    lastName?: string,
-  ): Promise<User> {
+  async create(params: CreateUserParams): Promise<User> {
+    const { email, plainPassword, firstName, lastName, signupPortal, systemRole, role } = params;
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('Email already registered');
@@ -20,7 +26,15 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(plainPassword, 10);
     return this.prisma.user.create({
-      data: { email, passwordHash, firstName, lastName },
+      data: {
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        signupPortal,
+        systemRole,
+        role,
+      },
     });
   }
 
@@ -99,4 +113,3 @@ export class UsersService {
     });
   }
 }
-

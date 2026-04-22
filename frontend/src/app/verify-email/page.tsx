@@ -5,29 +5,38 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { authApi } from '@/lib/authApi';
+import { useAuthStore } from '@/store/authStore';
 import { getApiErrorMessage } from '@/lib/utils';
+import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/Button';
 
 function VerifyEmailContent() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get('token') ?? '';
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
+    token ? 'loading' : 'error',
+  );
+  const [message, setMessage] = useState(token ? '' : 'No verification token provided.');
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('No verification token provided.');
-      return;
-    }
+    if (!token) return;
     authApi.verifyEmail(token)
-      .then((res) => {
-        setMessage(res.message ?? 'Email verified successfully!');
+      .then(async (res) => {
+        const msg = res.message ?? 'Email verified successfully!';
+        setMessage(msg);
+        notify.success(msg);
         setStatus('success');
+        try {
+          await useAuthStore.getState().refreshProfile();
+        } catch {
+          /* ignore */
+        }
       })
       .catch((err) => {
-        setMessage(getApiErrorMessage(err));
+        const msg = getApiErrorMessage(err);
+        setMessage(msg);
+        notify.error(msg);
         setStatus('error');
       });
   }, [token]);
@@ -66,7 +75,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
       <VerifyEmailContent />
     </Suspense>
   );

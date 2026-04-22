@@ -16,7 +16,6 @@ interface AuthState {
   setPortal: (portal: Portal) => void;
   updateUser: (user: User) => void;
   logout: () => Promise<void>;
-  logoutAll: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   clearAuth: () => void;
 }
@@ -49,16 +48,6 @@ export const useAuthStore = create<AuthState>()(
           if (refreshToken) await authApi.logout(refreshToken);
         } catch {
           // Ignore errors on logout
-        } finally {
-          get().clearAuth();
-        }
-      },
-
-      logoutAll: async () => {
-        try {
-          await authApi.logoutAll();
-        } catch {
-          // Ignore
         } finally {
           get().clearAuth();
         }

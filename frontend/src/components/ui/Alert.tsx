@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { AlertCircle, CheckCircle, Info, XCircle, X } from 'lucide-react';
+import type { ComponentType } from 'react';
 
 type AlertVariant = 'success' | 'error' | 'warning' | 'info';
 
@@ -11,7 +12,7 @@ interface AlertProps {
   className?: string;
 }
 
-const config: Record<AlertVariant, { icon: React.ElementType; classes: string }> = {
+const config: Record<AlertVariant, { icon: ComponentType<{ className?: string }>; classes: string }> = {
   success: { icon: CheckCircle, classes: 'bg-green-50 border-green-200 text-green-800' },
   error:   { icon: XCircle,     classes: 'bg-red-50 border-red-200 text-red-800' },
   warning: { icon: AlertCircle, classes: 'bg-amber-50 border-amber-200 text-amber-800' },

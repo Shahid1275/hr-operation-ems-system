@@ -4,14 +4,20 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { PageLoader } from '@/components/ui/Spinner';
-import type { Role } from '@/types';
+import type { SystemRole } from '@/types';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  requiredRole?: Role;
+  requiredRoles?: SystemRole[];
 }
 
-export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
+const adminRoles: SystemRole[] = ['COMPANY_ADMIN', 'HR_MANAGER', 'TEAM_LEAD'];
+
+function homeByRole(role: SystemRole) {
+  return adminRoles.includes(role) ? '/admin/dashboard' : '/employee/dashboard';
+}
+
+export function AuthGuard({ children, requiredRoles }: AuthGuardProps) {
   const router = useRouter();
   const { user, accessToken } = useAuthStore();
 
@@ -20,14 +26,20 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
       router.replace('/login');
       return;
     }
-    if (requiredRole && user.role !== requiredRole) {
-      // Redirect to the correct dashboard
-      router.replace(user.role === 'ADMIN' ? '/admin/dashboard' : '/employee/dashboard');
+    if (!user.isEmailVerified) {
+      router.replace(
+        `/pending-verification?email=${encodeURIComponent(user.email)}`,
+      );
+      return;
     }
-  }, [accessToken, user, requiredRole, router]);
+    if (requiredRoles && !requiredRoles.includes(user.systemRole)) {
+      router.replace(homeByRole(user.systemRole));
+    }
+  }, [accessToken, user, requiredRoles, router]);
 
   if (!accessToken || !user) return <PageLoader />;
-  if (requiredRole && user.role !== requiredRole) return <PageLoader />;
+  if (!user.isEmailVerified) return <PageLoader />;
+  if (requiredRoles && !requiredRoles.includes(user.systemRole)) return <PageLoader />;
 
   return <>{children}</>;
 }
