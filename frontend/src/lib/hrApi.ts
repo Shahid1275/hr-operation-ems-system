@@ -6,6 +6,7 @@ import type {
 } from '@/types';
 
 export const hrApi = {
+  // ── Employees ──────────────────────────────────────────────────────────────
   listEmployees: (params: {
     companyId: string;
     search?: string;
@@ -26,6 +27,7 @@ export const hrApi = {
     joiningDate?: string;
   }) => api.post('/employees', data).then((r) => unwrapEnvelope<EmployeeRecord>(r.data)),
 
+  // ── Organisation ───────────────────────────────────────────────────────────
   listDepartments: (companyId: string) =>
     api
       .get('/organization/departments', { params: { companyId } })
@@ -41,6 +43,7 @@ export const hrApi = {
       .get('/organization/branches', { params: { companyId } })
       .then((r) => unwrapEnvelope<OrganizationUnit[]>(r.data)),
 
+  // ── Dashboard ──────────────────────────────────────────────────────────────
   adminSummary: (companyId: string) =>
     api
       .get('/dashboard/admin-summary', { params: { companyId } })
@@ -54,6 +57,20 @@ export const hrApi = {
           }>(r.data),
       ),
 
+  employeeSummary: (employeeId: string, companyId: string) =>
+    api
+      .get('/dashboard/employee-summary', { params: { employeeId, companyId } })
+      .then(
+        (r) =>
+          unwrapEnvelope<{
+            attendance: number;
+            leaves: number;
+            payroll: number;
+            unreadNotifications: number;
+          }>(r.data),
+      ),
+
+  // ── Settings ───────────────────────────────────────────────────────────────
   getCompanySettings: (companyId: string) =>
     api
       .get('/settings/company', { params: { companyId } })
@@ -76,8 +93,10 @@ export const hrApi = {
       .patch('/settings/company', data, { params: { companyId } })
       .then((r) => unwrapEnvelope(r.data)),
 
+  // ── Leave ──────────────────────────────────────────────────────────────────
   listLeavePolicies: (companyId: string) =>
     api.get('/leave/policies', { params: { companyId } }).then((r) => unwrapEnvelope(r.data)),
+
   createLeavePolicy: (data: {
     companyId: string;
     leaveType: string;
@@ -87,6 +106,7 @@ export const hrApi = {
     requiresTeamLead: boolean;
     requiresHrApproval: boolean;
   }) => api.post('/leave/policies', data).then((r) => unwrapEnvelope(r.data)),
+
   allocateLeaveBalance: (data: {
     employeeId: string;
     companyId: string;
@@ -94,12 +114,22 @@ export const hrApi = {
     year: number;
     allocatedDays: number;
   }) => api.post('/leave/balances/allocate', data).then((r) => unwrapEnvelope(r.data)),
+
   listLeaveBalances: (companyId: string, employeeId?: string) =>
-    api.get('/leave/balances', { params: { companyId, employeeId } }).then((r) => unwrapEnvelope(r.data)),
+    api
+      .get('/leave/balances', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
   leaveCalendar: (companyId: string, month: string) =>
-    api.get('/leave/calendar', { params: { companyId, month } }).then((r) => unwrapEnvelope(r.data)),
+    api
+      .get('/leave/calendar', { params: { companyId, month } })
+      .then((r) => unwrapEnvelope(r.data)),
+
   listLeaveRequests: (companyId: string, employeeId?: string) =>
-    api.get('/leave/requests', { params: { companyId, employeeId } }).then((r) => unwrapEnvelope(r.data)),
+    api
+      .get('/leave/requests', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
   createLeaveRequest: (data: {
     employeeId: string;
     companyId: string;
@@ -109,13 +139,23 @@ export const hrApi = {
     totalDays: number;
     reason?: string;
   }) => api.post('/leave/requests', data).then((r) => unwrapEnvelope(r.data)),
-  teamLeadDecision: (leaveRequestId: string, decision: 'approve' | 'reject', comments?: string) =>
-    api.post('/leave/approve/team-lead', { leaveRequestId, decision, comments }).then((r) => unwrapEnvelope(r.data)),
-  hrDecision: (leaveRequestId: string, decision: 'approve' | 'reject', comments?: string) =>
-    api.post('/leave/approve/hr', { leaveRequestId, decision, comments }).then((r) => unwrapEnvelope(r.data)),
 
+  teamLeadDecision: (leaveRequestId: string, decision: 'approve' | 'reject', comments?: string) =>
+    api
+      .post('/leave/approve/team-lead', { leaveRequestId, decision, comments })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  hrDecision: (leaveRequestId: string, decision: 'approve' | 'reject', comments?: string) =>
+    api
+      .post('/leave/approve/hr', { leaveRequestId, decision, comments })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  // ── Payroll ────────────────────────────────────────────────────────────────
   listPayrollRecords: (companyId: string, employeeId?: string) =>
-    api.get('/payroll/records', { params: { companyId, employeeId } }).then((r) => unwrapEnvelope(r.data)),
+    api
+      .get('/payroll/records', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
   createPayrollCycle: (data: {
     companyId: string;
     name: string;
@@ -123,8 +163,12 @@ export const hrApi = {
     periodStart: string;
     periodEnd: string;
   }) => api.post('/payroll/cycles', data).then((r) => unwrapEnvelope(r.data)),
+
   listPayrollCycles: (companyId: string) =>
-    api.get('/payroll/cycles', { params: { companyId } }).then((r) => unwrapEnvelope(r.data)),
+    api
+      .get('/payroll/cycles', { params: { companyId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
   createPayrollRevision: (data: {
     payrollRecordId: string;
     employeeId: string;
@@ -132,18 +176,41 @@ export const hrApi = {
     reason: string;
     amountDelta: number;
   }) => api.post('/payroll/revisions', data).then((r) => unwrapEnvelope(r.data)),
-  listPayrollRevisions: (companyId: string, employeeId?: string) =>
-    api.get('/payroll/revisions', { params: { companyId, employeeId } }).then((r) => unwrapEnvelope(r.data)),
-  getPayslip: (payrollRecordId: string) =>
-    api.get('/payroll/payslip', { params: { payrollRecordId } }).then((r) => unwrapEnvelope(r.data)),
 
+  listPayrollRevisions: (companyId: string, employeeId?: string) =>
+    api
+      .get('/payroll/revisions', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  getPayslip: (payrollRecordId: string) =>
+    api
+      .get('/payroll/payslip', { params: { payrollRecordId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  // ── Attendance ─────────────────────────────────────────────────────────────
+  clockIn: (data: { employeeId: string; companyId: string; remarks?: string }) =>
+    api.post('/attendance/clock-in', data).then((r) => unwrapEnvelope(r.data)),
+
+  clockOut: (data: { employeeId: string; companyId: string; remarks?: string }) =>
+    api.post('/attendance/clock-out', data).then((r) => unwrapEnvelope(r.data)),
+
+  attendanceHistory: (companyId: string, employeeId?: string) =>
+    api
+      .get('/attendance/history', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  // ── Documents ──────────────────────────────────────────────────────────────
   uploadDocument: (formData: FormData) =>
     api
       .post('/documents/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then((r) => unwrapEnvelope(r.data)),
-  listDocuments: (companyId: string, employeeId?: string) =>
-    api.get('/documents', { params: { companyId, employeeId } }).then((r) => unwrapEnvelope(r.data)),
 
+  listDocuments: (companyId: string, employeeId?: string) =>
+    api
+      .get('/documents', { params: { companyId, employeeId } })
+      .then((r) => unwrapEnvelope(r.data)),
+
+  // ── Audit ──────────────────────────────────────────────────────────────────
   listAuditLogs: (companyId?: string) =>
     api.get('/audit/logs', { params: { companyId } }).then((r) => unwrapEnvelope(r.data)),
 };
