@@ -16,16 +16,19 @@ export function DashboardLayout({ isAdmin, children }: Props) {
   const { user, logout } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-slate-100 flex">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar isAdmin={isAdmin} />
-      <div className="flex-1 min-w-0">
+
+      <div className="flex flex-col flex-1 min-w-0">
         <Navbar
           user={user}
           isAdmin={isAdmin}
           onAddEmployee={isAdmin ? () => router.push('/admin/users') : undefined}
           onLogout={logout}
         />
-        <main className="p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-5 lg:p-7 page-fade">
+          {children}
+        </main>
       </div>
     </div>
   );
